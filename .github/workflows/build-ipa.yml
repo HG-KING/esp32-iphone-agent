@@ -1,0 +1,35 @@
+name: Build unsigned IPA
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          cp Config/Local.xcconfig.example Config/Local.xcconfig
+          xcodegen
+
+      - name: Build unsigned device app
+        run: |
+          xcodebuild -project IPhoneAgent.xcodeproj -scheme IPhoneAgent \
+            -sdk iphoneos -configuration Release -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/IPhoneAgent.app Payload/
+          zip -qry IPhoneAgent-unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IPhoneAgent-unsigned-ipa
+          path: ios/IPhoneAgent-unsigned.ipa
